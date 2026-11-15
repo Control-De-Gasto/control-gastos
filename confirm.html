@@ -1,0 +1,50 @@
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f3f5f4">
+
+    <title>Confirmar correo | Control de Gastos</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <main class="container">
+
+        <div class="icon" id="statusIcon">✓</div>
+
+        <h1 id="statusTitle">Verificando tu correo...</h1>
+
+        <p id="statusText">
+            Estamos comprobando tu enlace de confirmación.
+        </p>
+
+        <!-- Alternativa para móviles sin la aplicación -->
+        <button
+            id="browserButton"
+            type="button"
+            class="hidden">
+            Continuar en el navegador
+        </button>
+
+        <div id="message" class="message"></div>
+
+        <div class="brand">
+            CONTROL DE GASTOS
+        </div>
+
+    </main>
+
+    <!-- Biblioteca oficial de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Lógica de confirmación -->
+    <script src="js/confirm.js"></script>
+
+</body>
+</html>
