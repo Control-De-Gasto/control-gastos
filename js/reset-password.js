@@ -1,15 +1,13 @@
-
 /* ==========================================================
    CONTROL DE GASTOS
    Recuperación de contraseña mediante Supabase Auth
+   Escritorio: formulario web
+   Móvil: abrir la app y cambiar la contraseña en Flutter
    ========================================================== */
-
-// 1. CONFIGURACIÓN DE SUPABASE
 
 const SUPABASE_URL = "https://jvtliypgkjlyredslhmx.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_xq7ax6RrfqkGB70MCepj6A_3HXqU5V1";
 
-// Crear cliente de Supabase
 const supabaseClient = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -17,149 +15,128 @@ const supabaseClient = window.supabase.createClient(
         auth: {
             autoRefreshToken: true,
             persistSession: true,
-            detectSessionInUrl: true
+            detectSessionInUrl: false
         }
     }
 );
-
-
-// 2. ELEMENTOS HTML
 
 const resetForm = document.getElementById("resetForm");
 const passwordInput = document.getElementById("password");
 const confirmPasswordInput = document.getElementById("confirmPassword");
 const resetButton = document.getElementById("resetButton");
 const messageBox = document.getElementById("message");
+const browserButton = document.getElementById("browserButton");
 
-
-// 3. ESTADO DE LA RECUPERACIÓN
+const params = new URLSearchParams(window.location.search);
+const tokenHash = params.get("token_hash");
+const tokenType = params.get("type");
 
 let recoveryReady = false;
+let verificationStarted = false;
 
-
-// 4. FUNCIONES AUXILIARES
+function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
 function showMessage(message, type) {
     messageBox.textContent = message;
     messageBox.className = "message " + type;
 }
 
-function hideMessage() {
-    messageBox.textContent = "";
-    messageBox.className = "message";
-}
-
 function showForm() {
     recoveryReady = true;
     resetForm.classList.remove("hidden");
-    hideMessage();
+    browserButton.classList.add("hidden");
+    showMessage("Enlace verificado. Introduce tu nueva contraseña.", "info");
 }
 
-function showInvalidLink() {
+function showInvalidLink(message) {
     recoveryReady = false;
     resetForm.classList.add("hidden");
-
     showMessage(
-        "El enlace de recuperación no es válido o ha caducado. " +
-        "Solicita un nuevo correo de recuperación desde la aplicación.",
+        message || "El enlace de recuperación no es válido o ha caducado. Solicita uno nuevo desde la aplicación.",
         "error"
     );
 }
 
-
-// 5. COMPROBAR ERRORES DEL ENLACE
-
-function checkUrlErrors() {
-    const params = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(
-        window.location.hash.substring(1)
-    );
-
-    const error =
-        params.get("error") ||
-        hashParams.get("error");
-
-    const errorCode =
-        params.get("error_code") ||
-        hashParams.get("error_code");
-
-    if (error || errorCode) {
-        showInvalidLink();
-        return true;
-    }
-
-    return false;
+function getUrlError() {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    return params.get("error_description") || params.get("error_code") || params.get("error") ||
+        hashParams.get("error_description") || hashParams.get("error_code") || hashParams.get("error");
 }
 
+// En escritorio, validar el token con Supabase y mostrar el formulario web.
+async function verifyAndShowWebForm() {
+    if (verificationStarted) return;
+    verificationStarted = true;
+    browserButton.classList.add("hidden");
+    showMessage("Comprobando el enlace de recuperación...", "info");
 
-// 6. DETECTAR LA RECUPERACIÓN DE CONTRASEÑA
-
-function initializeRecovery() {
-
-    if (checkUrlErrors()) {
+    if (getUrlError()) {
+        showInvalidLink("El enlace de recuperación ha caducado o no es válido. Solicita uno nuevo.");
         return;
     }
 
-    showMessage(
-        "Comprobando el enlace de recuperación...",
-        "info"
-    );
+    if (!tokenHash || tokenType !== "recovery") {
+        showInvalidLink("El enlace no contiene un token de recuperación válido.");
+        return;
+    }
 
-    // Si el usuario ha recargado la página durante
-    // una recuperación que ya había sido validada.
-    const previousRecovery =
-        sessionStorage.getItem("passwordRecoveryActive") === "true";
+    try {
+        const { data, error } = await supabaseClient.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: "recovery"
+        });
 
-    // Escuchar eventos de autenticación de Supabase.
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-
-        if (event === "PASSWORD_RECOVERY" && session) {
-
-            sessionStorage.setItem(
-                "passwordRecoveryActive",
-                "true"
-            );
-
-            showForm();
-        }
-
-        if (event === "SIGNED_OUT") {
-
-            sessionStorage.removeItem(
-                "passwordRecoveryActive"
-            );
-
-            recoveryReady = false;
-        }
-    });
-
-    // Comprobar si existe una sesión válida.
-    supabaseClient.auth.getSession().then(({ data, error }) => {
-
-        if (error) {
-            showInvalidLink();
-            return;
-        }
-
-        const session = data.session;
-
-        if (!session) {
-            showInvalidLink();
-            return;
-        }
-
-        if (previousRecovery) {
-            showForm();
-        }
-
-    });
+        if (error) throw error;
+        if (!data.session) throw new Error("Supabase no ha creado una sesión de recuperación.");
+        showForm();
+    } catch (error) {
+        console.error("Error al verificar el enlace de recuperación:", error);
+        showInvalidLink(error.message || "No se ha podido verificar el enlace.");
+    }
 }
 
+// En móvil, enviar token_hash a Flutter. La app ejecutará verifyOTP(recovery)
+// y mostrará PasswordRecoveryPage para cambiar la contraseña dentro de la app.
+function openFlutterApp() {
+    showMessage("Abriendo Control de Gastos para cambiar tu contraseña...", "info");
+    browserButton.classList.remove("hidden");
 
-// 7. PROCESAR EL CAMBIO DE CONTRASEÑA
+    const appUrl = new URL("controlgastos://login-callback/");
+    appUrl.searchParams.set("token_hash", tokenHash);
+    appUrl.searchParams.set("type", "recovery");
+    appUrl.searchParams.set("flow", "recovery");
+
+    window.location.href = appUrl.toString();
+
+    // Si el usuario sigue en esta página, puede elegir continuar en el navegador.
+    setTimeout(() => {
+        if (!document.hidden) browserButton.classList.remove("hidden");
+    }, 1800);
+}
+
+browserButton.addEventListener("click", verifyAndShowWebForm);
+
+function initializeRecovery() {
+    if (getUrlError()) {
+        showInvalidLink("El enlace de recuperación ha caducado o no es válido. Solicita uno nuevo.");
+        return;
+    }
+
+    if (!tokenHash || tokenType !== "recovery") {
+        showInvalidLink("El enlace no contiene un token de recuperación válido.");
+        return;
+    }
+
+    if (isMobileDevice()) {
+        openFlutterApp();
+    } else {
+        verifyAndShowWebForm();
+    }
+}
 
 resetForm.addEventListener("submit", async (event) => {
-
     event.preventDefault();
 
     if (!recoveryReady) {
@@ -170,71 +147,41 @@ resetForm.addEventListener("submit", async (event) => {
     const password = passwordInput.value;
     const confirmPassword = confirmPasswordInput.value;
 
-    // Validaciones
     if (password.length < 6) {
-        showMessage(
-            "La contraseña debe tener al menos 6 caracteres.",
-            "error"
-        );
+        showMessage("La contraseña debe tener al menos 6 caracteres.", "error");
         return;
     }
 
     if (password !== confirmPassword) {
-        showMessage(
-            "Las contraseñas no coinciden.",
-            "error"
-        );
+        showMessage("Las contraseñas no coinciden.", "error");
         return;
     }
 
-    // Deshabilitar botón durante la operación
     resetButton.disabled = true;
     resetButton.textContent = "Actualizando contraseña...";
 
     try {
+        const { error } = await supabaseClient.auth.updateUser({ password });
+        if (error) throw error;
 
-        const { data, error } =
-            await supabaseClient.auth.updateUser({
-                password: password
-            });
-
-        if (error) {
-            throw error;
-        }
-
-        // Recuperación completada
-        sessionStorage.removeItem(
-            "passwordRecoveryActive"
-        );
-
+        recoveryReady = false;
         resetForm.classList.add("hidden");
-
         passwordInput.value = "";
         confirmPasswordInput.value = "";
-
         showMessage(
-            "¡Contraseña actualizada correctamente! " +
-            "Ya puedes iniciar sesión con tu nueva contraseña.",
+            "¡Contraseña actualizada correctamente! Ya puedes iniciar sesión con tu nueva contraseña.",
             "success"
         );
-
     } catch (error) {
-
         console.error("Error al actualizar contraseña:", error);
-
-        showMessage(
-            error.message || "No se ha podido actualizar la contraseña.",
-            "error"
-        );
-
+        showMessage(error.message || "No se ha podido actualizar la contraseña.", "error");
     } finally {
-
         resetButton.disabled = false;
         resetButton.textContent = "Cambiar contraseña";
-
     }
-
 });
+
+initializeRecovery();
 
 
 // 8. INICIAR
