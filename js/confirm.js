@@ -103,7 +103,7 @@ async function verifyInBrowser() {
         const { data, error } =
             await supabaseClient.auth.verifyOtp({
                 token_hash: tokenHash,
-                type: "email"
+                type: "signup"
             });
 
         if (error) {
