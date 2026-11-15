@@ -6,7 +6,7 @@
 
 // 1. CONFIGURACIÓN DE SUPABASE
 
-const SUPABASE_URL = "https://jvtliypgkjlyredslhmx.supabase.co/rest/v1/";
+const SUPABASE_URL = "https://jvtliypgkjlyredslhmx.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_xq7ax6RrfqkGB70MCepj6A_3HXqU5V1";
 
 // Crear cliente de Supabase
