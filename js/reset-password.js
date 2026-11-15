@@ -181,9 +181,6 @@ resetForm.addEventListener("submit", async (event) => {
     }
 });
 
-initializeRecovery();
-
-
 // 8. INICIAR
 
 initializeRecovery();
