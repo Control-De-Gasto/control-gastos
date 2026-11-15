@@ -138,3 +138,9 @@ button:disabled {
 .hidden {
     display: none;
 }
+
+.message.info {
+    display: block;
+    background: #24364b;
+    color: #c1ccda;
+}
