@@ -140,7 +140,7 @@ function openFlutterApp() {
     );
 
     appUrl.searchParams.set("token_hash", tokenHash);
-    appUrl.searchParams.set("type", "email");
+    appUrl.searchParams.set("type", "signup");
     appUrl.searchParams.set("flow", "confirmation");
 
     // Intentar abrir la aplicación
@@ -164,7 +164,7 @@ function openFlutterApp() {
 function initializeConfirmation() {
 
     // Comprobar que existe el token
-    if (!tokenHash || tokenType !== "email") {
+    if (!tokenHash || tokenType !== "signup") {
 
         showError(
             "El enlace de confirmación no es válido o está incompleto."
