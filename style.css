@@ -144,3 +144,11 @@ button:disabled {
     background: #24364b;
     color: #c1ccda;
 }
+
+#statusIcon {
+    transition: all 0.2s ease;
+}
+
+button.hidden {
+    display: none;
+}
